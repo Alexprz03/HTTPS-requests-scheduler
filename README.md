@@ -197,4 +197,4 @@ The Status enum represents the status of requests.
 
 ## Conclusion
 
-The Scheduler API provides a convenient way to manage and execute HTTP(S) GET requests in a specific order based on their priority. By following the usage instructions and utilizing the provided methods and classes, you can effectively control the execution flow of your requests. If you have any further questions or need assistance, please refer to the documentation or contact the project maintainers.
+The Scheduler API provides a convenient way to manage and execute HTTP(S) GET requests in a specific order based on their priority. By following the usage instructions and utilizing the provided methods and classes, you can effectively control the execution flow of your requests.

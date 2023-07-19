@@ -11,13 +11,13 @@ As a TypeScript project, you need to have Node.js and npm installed in your envi
 1. Clone the repository:
 
 ```
-git clone <repository-url>
+git clone https://github.com/Alexprz03/HTTPS-requests-scheduler.git
 ```
 
 2. Navigate to the project directory:
 
 ```
-cd <project-directory>
+cd HTTPS-requests-schedule
 ```
 
 3. Install the dependencies:

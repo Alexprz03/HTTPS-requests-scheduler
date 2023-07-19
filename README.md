@@ -38,7 +38,7 @@ npm run build
 npm run test
 ```
 
-5. Run sample of script:
+5. Run [sample of script](./script/main.ts):
 
 ```
 npm run main

@@ -92,9 +92,15 @@ Cancels the HTTPS request.
 
 ### Scheduler
 
+#### Public methods
+
 **`constructor()`**
 
 Creates a new instance of the `Scheduler` class.
+
+**`print()`**
+
+Prints the current status of the scheduler.
 
 **`addRequest(newRequests: Request[])`**
 
@@ -123,6 +129,21 @@ Cancels a running request.
 **`changeRequestPriority(requestId: string, newPriority: Priority): void`**
 
 Changes the priority of a request.
+
+#### Private Methods
+These methods are meant for internal use within the class and are not typically accessed outside the class.
+
+**`getMaxPriority(requests: Request[])`**
+
+Gets the maximum priority among a list of requests.
+
+**`requestsWithMaxPriority(requests: Request[])`**
+
+Returns an array of requests with the maximum priority.
+
+**`requestsWithoutMaxPriority(requests: Request[])`**
+
+Returns an array of requests that do not have the maximum priority.
 
 Please refer to the source code and comments for further details on how each method works.
 

@@ -218,7 +218,7 @@ export default class Scheduler {
     }
       
     // Method to cancel a pending request
-     public cancelPendingRequest(requestId: string): void {
+    public cancelPendingRequest(requestId: string): void {
         const pendingRequest = this.pendingRequests.find((req) => req.id === requestId);
         if(pendingRequest) {
             pendingRequest.status = Status.CANCELED;

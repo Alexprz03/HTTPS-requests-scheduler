@@ -2,10 +2,10 @@ import Scheduler from '../src/scheduler';
 import Request, { Priority } from '../src/request';
 
 async function main() {
-    // Créer une instance de l'ordonnanceur
+    // Create an instance
     const scheduler = new Scheduler();
 
-    // Créer 15 requêtes avec des priorités différentes
+    // Create 15 requests with different priorities
     const requests = [
         new Request('1', 'https://httpbin.org/get/', Priority.LOW),
         new Request('2', 'https://httpbin.org/get/', Priority.MEDIUM),
@@ -24,13 +24,13 @@ async function main() {
         new Request('15', 'https://api.sandbox.game/lands/9232/metadata.json/', Priority.HIGH),
     ];
 
-    // Ajouter les requêtes à l'ordonnanceur
+    // Add the requests to the scheduler
     scheduler.addRequest(requests);
 
-    // Lancer l'ordonnanceur
+    // Run scheduler
     scheduler.run(true);
 
-    // // Ajouter de nouvelles requêtes à intervalles réguliers
+    // Add new requests at regular intervals
     let requestId = 16;
     let number = 9000;
     setInterval(() => {
@@ -55,7 +55,7 @@ async function main() {
         }
 
         requestId += 3;
-    }, 3000);  // Ajouter de nouvelles requêtes toutes les 3 secondes
+    }, 3000);  // Add new requests every 3 seconds
 }
 
 main().catch(error => console.error(error));

@@ -1,4 +1,4 @@
 "use strict";
 
-export * from './ordonnanceur';
+export * from './scheduler';
 export * from './request';

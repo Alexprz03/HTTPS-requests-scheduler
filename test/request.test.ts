@@ -4,16 +4,16 @@ import Request, { Priority, Status } from "../src/request";
 
 describe('Request', () => {
     it('should create a request correctly', () => {
-        const request = new Request('1', 'https://api.sandbox.game/lands/92311/metadata.json', Priority.HAUTE);
+        const request = new Request('1', 'https://api.sandbox.game/lands/92311/metadata.json', Priority.HIGH);
 
         expect(request.id).to.equal('1');
         expect(request.url).to.equal('https://api.sandbox.game/lands/92311/metadata.json');
-        expect(request.priority).to.equal(Priority.HAUTE);
+        expect(request.priority).to.equal(Priority.HIGH);
         expect(request.status).to.equal(Status.PENDING);
     });
 
     it('should set status to IN_PROGRESS when executing', () => {
-        const request = new Request('1', 'https://api.sandbox.game/lands/92311/metadata.json', Priority.HAUTE);
+        const request = new Request('1', 'https://api.sandbox.game/lands/92311/metadata.json', Priority.HIGH);
 
         request.execute();
 
@@ -21,7 +21,7 @@ describe('Request', () => {
     });
 
     it('should set status to EXECUTED after successful execution', async () => {
-        const request = new Request('1', 'https://api.sandbox.game/lands/92311/metadata.json', Priority.HAUTE);
+        const request = new Request('1', 'https://api.sandbox.game/lands/92311/metadata.json', Priority.HIGH);
 
         await request.execute();
 
@@ -29,7 +29,7 @@ describe('Request', () => {
     });
 
     it('should set status to CANCELED after request is canceled', () => {
-        const request = new Request('1', 'https://api.sandbox.game/lands/92311/metadata.json', Priority.HAUTE);
+        const request = new Request('1', 'https://api.sandbox.game/lands/92311/metadata.json', Priority.HIGH);
 
         request.execute();
         request.cancel();

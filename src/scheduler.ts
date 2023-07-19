@@ -1,13 +1,15 @@
 import Request, { Priority, Status } from "./request";
 
-export default class Ordonnanceur {
-    pendingRequests: Request[];
-    runningRequests: Request[];
-    executedRequests: Request[];
-    logs: string[];
-    responses: any[];
+// Scheduler class that manages requests
+export default class Scheduler {
+    pendingRequests: Request[];   // Array of pending requests
+    runningRequests: Request[];   // Array of currently running requests
+    executedRequests: Request[];  // Array of executed requests
+    logs: string[];               // Logs of the requests
+    responses: any[];             // Responses from the requests
 
     constructor() {
+        // Initialize the arrays and logs
         this.pendingRequests = [];
         this.runningRequests = [];
         this.executedRequests = [];
@@ -15,19 +17,23 @@ export default class Ordonnanceur {
         this.responses = [];
     }
 
+    // Method to add new requests
     public addRequest(newRequests: Request[]) {
+        // Throw an error if the array of requests is empty
         if (newRequests.length === 0) {
             throw new Error("The array of requests is empty");
         }
 
-        // 1e cas requetes en cours vide
+        // Case 1: no current running requests
         if (this.runningRequests.length === 0) {
             const requestsWithMaxPriority = this.requestsWithMaxPriority(newRequests);
-            // Executer les requetes
+            // Execute the requests with maximum priority
             for (const req of requestsWithMaxPriority) {
                 req.execute()
                 .then((response) => {
+                    // Log the executed request
                     this.logs.push(`${req.id} ${req.status} (Priority: ${req.priority})`);
+                    // Save the response
                     this.responses.push(response);
                 })
                 .catch((error) => {
@@ -36,21 +42,22 @@ export default class Ordonnanceur {
                 this.runningRequests.push(req);
             }
 
-            // Placer le reste des requetes dans la file
+            // Put the remaining requests in the pending list
             const requestsWithoutMaxPriority = this.requestsWithoutMaxPriority(newRequests);
             this.pendingRequests.push(...requestsWithoutMaxPriority);
         }
-        // 2nd cas requetes en cours pas vide
+
+        // Case 2: there are running requests
         else if (this.runningRequests.length > 0) {
             const maxPriorityNewRequests = this.requestsWithMaxPriority(newRequests);
             const maxPriorityRunningRequests = this.getMaxPriority(this.runningRequests);
 
-            //Ici on teste si la priorité des requetes entrantes sont sup aux actuelles
+            // Check if incoming requests have higher priority than the running ones
             if (maxPriorityNewRequests[0].priority >= maxPriorityRunningRequests) {
-                // Traitement des requêtes de très haute priorité
+                // Process requests of very high priority
                 if(maxPriorityNewRequests[0].priority === Priority.VERY_HIGH){
                     const veryLowPriorityRequests = this.runningRequests.filter((req) => req.priority <= Priority.VERY_LOW);
-                    // Annuler et remettre en attente toutes les requêtes en cours de très basse priorité
+                    // Cancel and push back to the pending list all running requests of very low priority
                     veryLowPriorityRequests.forEach((req) => {
                         req.cancel();
                         this.logs.push(`${req.id} ${req.status} (Priority: ${req.priority})`);
@@ -59,7 +66,7 @@ export default class Ordonnanceur {
                     });
                 }
 
-                // On ajoute la plus haute prio dans le running et on execute
+                // Add the highest priority requests to running and execute them
                 for (const req of maxPriorityNewRequests) {
                     req.execute()
                     .then((response) => {
@@ -72,14 +79,15 @@ export default class Ordonnanceur {
                     this.runningRequests.push(req);
                 }
 
-                // On place les autres en pending
+                // Push the remaining requests to pending
                 const othersNewRequests = this.requestsWithoutMaxPriority(newRequests);
                 this.pendingRequests.push(...othersNewRequests);
             }
         }
     }
 
-    private print() {
+    // Method to print the current status of the scheduler
+    public print() {
         console.clear();
         console.log("List of running requests : ");
         this.runningRequests.forEach((req) => {
@@ -99,6 +107,7 @@ export default class Ordonnanceur {
         })
     }
 
+    // Public method to run the scheduler
     public async run(print?: boolean): Promise<void> {
         let refresh:boolean;
         const logs: string[] = [];
@@ -106,20 +115,23 @@ export default class Ordonnanceur {
             const interval = setInterval(() => {
                 refresh = false;
                 if (print) this.print();
+
+                // Check if any requests have been executed and if we need to update the tables
                 this.runningRequests.forEach((req, index) => {
                     if (req.isFinished()) {
                         refresh = true;
-                        // Retirer la requête du tableau runningRequests
+                        // Remove the request from the running list
                         const executedRequest = this.runningRequests.splice(index, 1)[0];
-                        // Ajouter la requête dans le tableau executedRequests
+                        // Add the request to the executed list
                         this.executedRequests.push(executedRequest);
                     }
                 });
 
+                // If a request has been executed, we update the tables
                 if (refresh) {
-                    // Si il ne reste pas de requête en cours mais qu’il y en a en attente
+                    // If there are no running requests but there are pending ones
                     if (this.runningRequests.length === 0 && this.pendingRequests.length > 0) {
-                        // l’ordonnanceur exécute celle(s) ayant la plus haute priorité seulement
+                        // the scheduler runs those with the highest priority only
                         const requestsToRun = this.requestsWithMaxPriority(this.pendingRequests);
                         requestsToRun.forEach((req) => {
                             req.execute()
@@ -132,15 +144,15 @@ export default class Ordonnanceur {
                             });
                             this.runningRequests.push(req);
                         })
-                        // laissant les autres toujours en attente
+                        // leaving the others still pending
                         this.pendingRequests = this.requestsWithoutMaxPriority(this.pendingRequests);
                     }
 
-                    // Si il reste au moins une requête en cours et au moins une requête en attente
+                    // If there is at least one running request and at least one pending request
                     if (this.runningRequests.length > 0 && this.pendingRequests.length > 0) {
-                        // exécutera la/les requête(s) en attente avec la plus haute priorité seulement si leur(s) priorité(s) est supérieure ou égale
+                        // it will execute the pending request(s) with the highest priority only if their priority(s) is higher or equal
                         if(this.getMaxPriority(this.pendingRequests) >= this.getMaxPriority(this.runningRequests)) {
-                            // On execute
+                            // Execute
                             const requestsToRun = this.requestsWithMaxPriority(this.pendingRequests);
                             requestsToRun.forEach((req) => {
                                 req.execute()
@@ -153,22 +165,22 @@ export default class Ordonnanceur {
                                 });
                                 this.runningRequests.push(req);
                             })
-                            // On retire du pending
+                            // Remove from pending
                             this.pendingRequests = this.requestsWithoutMaxPriority(this.pendingRequests);
                         }
                     }
                 }    
-                // Si toutes les requêtes sont terminées, arrêter la vérification
+                // If all requests are done, stop the checking
                 if (this.pendingRequests.length === 0 && this.runningRequests.length === 0) {
                     clearInterval(interval);
                     if (print) this.print();
                     resolve();
                 }
-            }, 100); // Vérifie l'état des requêtes toutes les secondes
+            }, 500); //Check the status of the requests every half second
         });
     }
 
-
+    // Method to get the maximum priority among a list of requests
     private getMaxPriority(requests: Request[]): number {
         if (requests.length === 0) {
             return -1;
@@ -177,6 +189,7 @@ export default class Ordonnanceur {
         return requests[0].priority;
     }
 
+    // Method to get the requests with the maximum priority
     private requestsWithMaxPriority(requests: Request[]): Request[] {
         if (requests.length === 0) {
             return [];
@@ -185,6 +198,7 @@ export default class Ordonnanceur {
         return requests.filter(req => req.priority === maxPriority);
     }
 
+    // Method to get the requests without the maximum priority
     private requestsWithoutMaxPriority(requests: Request[]): Request[] {
         if (requests.length === 0) {
             return [];
@@ -193,14 +207,17 @@ export default class Ordonnanceur {
         return requests.filter(req => req.priority !== maxPriority);
     }
 
+    // Method to check if a specific request is currently being processed
     public isRequestInProgress(requestId: string): boolean {
         return this.runningRequests.some((req) => req.id === requestId);
     }
 
+    // Method to check if a specific request is pending
     public isRequestPending(requestId: string): boolean {
         return this.pendingRequests.some((req) => req.id === requestId);
     }
       
+    // Method to cancel a pending request
      public cancelPendingRequest(requestId: string): void {
         const pendingRequest = this.pendingRequests.find((req) => req.id === requestId);
         if(pendingRequest) {
@@ -212,37 +229,48 @@ export default class Ordonnanceur {
         }
     }
 
+    // Method to cancel a running request
     public cancelRunningRequest(requestId: string): void {
         const requestToCancel = this.runningRequests.find((req) => req.id === requestId);
+        // If the request is found and it is not finished, cancel it
         if (requestToCancel && !requestToCancel.isFinished()) {
           requestToCancel.cancel();
+          // Log the canceled request
           this.logs.push(`${requestToCancel.id} ${requestToCancel.status} (Priority: ${requestToCancel.priority})`);
         } else {
           console.log("Request not found");
         }
     }
 
+    // Method to change the priority of a request
     public changeRequestPriority(requestId: string, newPriority: Priority): void {
+        // Find the request in the runningRequests array
         const requestToUpdate = this.runningRequests.find((req) => req.id === requestId);
-        // On ne change rien si la requete est deja en cours
+        // If the request is found and it is running, update its priority
         if (requestToUpdate) {
             requestToUpdate.priority = newPriority;
-        } else {
+        } 
+        else {
+            // If the request is not found in the running requests, find it in the pending requests
             const pendingRequestToUpdate = this.pendingRequests.find((req) => req.id === requestId);
-            // Si la nouvelle priorité est superieur ou egale à la priorité max des requetes en cours, on l'execute
+            // If the request is found and its new priority is greater than or equal to the maximum priority of the running requests, execute it
             if (pendingRequestToUpdate) {
                 pendingRequestToUpdate.priority = newPriority;
                 const maxPriorityRunningRequests = this.getMaxPriority(this.runningRequests);
                 if (newPriority >= maxPriorityRunningRequests) {
                     pendingRequestToUpdate.execute()
                         .then((response) => {
+                            // Log the executed request
                             this.logs.push(`${pendingRequestToUpdate.id} ${pendingRequestToUpdate.status} (Priority: ${pendingRequestToUpdate.priority})`);
+                            // Save the response
                             this.responses.push(response);
                         })
                         .catch((error) => {
                             console.log(error);
                         });
+                    // Add the request to the runningRequests array
                     this.runningRequests.push(pendingRequestToUpdate);
+                    // Remove the request from the pendingRequests array
                     this.pendingRequests = this.pendingRequests.filter((req) => req.id !== requestId);
                 }
             } else {
@@ -250,6 +278,4 @@ export default class Ordonnanceur {
             }
         }
     }
-    
-    
 }

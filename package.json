@@ -1,0 +1,21 @@
+{
+  "name": "ordonnanceur-http",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "main": "ts-node ./script/main.ts",
+    "test": "mocha -r ./node_modules/ts-node/register test/*.test.ts --timeout 10000"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/chai": "^4.3.5",
+    "@types/mocha": "^10.0.1",
+    "chai": "^4.3.7",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.1.6"
+  }
+}

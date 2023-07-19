@@ -56,13 +56,14 @@ export default class Scheduler {
             if (maxPriorityNewRequests[0].priority >= maxPriorityRunningRequests) {
                 // Process requests of very high priority
                 if(maxPriorityNewRequests[0].priority === Priority.VERY_HIGH){
-                    const veryLowPriorityRequests = this.runningRequests.filter((req) => req.priority <= Priority.VERY_LOW);
+                    const veryLowPriorityRequests = this.runningRequests.filter((req) => req.priority === Priority.VERY_LOW);
                     // Cancel and push back to the pending list all running requests of very low priority
                     veryLowPriorityRequests.forEach((req) => {
                         req.cancel();
                         this.logs.push(`${req.id} ${req.status} (Priority: ${req.priority})`);
                         req.status = Status.PENDING;
                         this.pendingRequests.push(req);
+                        this.runningRequests = this.runningRequests.filter((runningReq) => runningReq !== req);
                     });
                 }
 

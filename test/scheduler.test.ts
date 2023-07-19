@@ -4,7 +4,6 @@ import Request, { Priority, Status } from "../src/request";
 
 let scheduler: Scheduler;
 
-// Test pour vérifier l'exécution des requêtes dans l'ordre de priorité correct
 describe("project testing", () => {
 
     beforeEach(() => {
@@ -20,7 +19,6 @@ describe("project testing", () => {
 
     await scheduler.run();    
     
-    // Vérifier que les requêtes sont exécutées dans le bon ordre
     expect(scheduler.executedRequests.map((req) => req.id)).to.deep.equal(["2", "3", "1"]);
     });
 
@@ -75,27 +73,57 @@ describe("project testing", () => {
     });
 
     it('should change priority and execute pending request if necessary', () => {
-        const ordonnanceur = new Scheduler();
-    
+
         const request1 = new Request("1", "https://api.sandbox.game/lands/9239/metadata.json", Priority.HIGH);
         const request2 = new Request("2", "https://api.sandbox.game/lands/92310/metadata.json", Priority.HIGH);
         const request3 = new Request("3", "https://api.sandbox.game/lands/92311/metadata.json", Priority.MEDIUM);
         const request4 = new Request("4", 'https://api.sandbox.game/lands/9238/metadata.json', Priority.LOW);
 
-        ordonnanceur.addRequest([request1, request2, request3,request4]);
+        scheduler.addRequest([request1, request2, request3,request4]);
 
-        ordonnanceur.run();
+        scheduler.run();
         
-        // Changer la priorité de la requête en attente et vérifier si elle est exécutée
-        ordonnanceur.changeRequestPriority("4", Priority.HIGH);
+        scheduler.changeRequestPriority("4", Priority.HIGH);
     
-        // Vérifier que la priorité de la requête en attente a été modifiée
         expect(request4.priority).to.equal(Priority.HIGH);
     
-        // Vérifier que la requête en attente a été exécutée et ajoutée aux requêtes en cours
-        expect(ordonnanceur.runningRequests).to.include(request4);
+        expect(scheduler.runningRequests).to.include(request4);
     
-        // Vérifier que la requête en attente a été supprimée des requêtes en attente
-        expect(ordonnanceur.pendingRequests).to.not.include(request4);
+        expect(scheduler.pendingRequests).to.not.include(request4);
+    });    
+
+    it('should cancel very_low priority and change to pending', async () => {    
+        const request1 = new Request("1", "https://api.sandbox.game/lands/9239/metadata.json", Priority.VERY_LOW);
+        const request2 = new Request("2", "https://api.sandbox.game/lands/92310/metadata.json", Priority.VERY_LOW);
+        const request3 = new Request("3", "https://api.sandbox.game/lands/92311/metadata.json", Priority.VERY_LOW);
+        const request4 = new Request("4", 'https://api.sandbox.game/lands/9238/metadata.json', Priority.VERY_HIGH);
+
+        scheduler.addRequest([request1, request2, request3]);
+        const running = scheduler.run();
+        scheduler.addRequest([request4]);
+        
+        expect(request4.priority).to.equal(Priority.VERY_HIGH);
+    
+        expect(scheduler.runningRequests).to.include(request4);
+
+        // Test if its canceled
+        //console.log(scheduler.runningRequests);
+        expect(scheduler.runningRequests).to.not.include(request1);
+        expect(scheduler.runningRequests).to.not.include(request2);
+        expect(scheduler.runningRequests).to.not.include(request3);
+
+        // Test if it switch to pending
+        expect(scheduler.pendingRequests).to.include(request1);
+        expect(scheduler.pendingRequests).to.include(request2);
+        expect(scheduler.pendingRequests).to.include(request3);
+
+        // waiting all Promises
+        await running;
+
+        // Verify that all pomises have been resolved and executedRequests array has 4 requests
+        expect(scheduler.pendingRequests).to.deep.equal([]);
+        expect(scheduler.runningRequests).to.deep.equal([]);
+        expect(scheduler.executedRequests.length).to.equal(4);
+
     });    
 });

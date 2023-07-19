@@ -39,6 +39,7 @@ npm run test
 ```
 
 5. Run [sample of script](./script/main.ts):
+*If you want to properly view the continuous output during the execution of the run(), consider enlarging the console.*
 
 ```
 npm run main

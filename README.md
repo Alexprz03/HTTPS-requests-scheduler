@@ -17,7 +17,7 @@ git clone https://github.com/Alexprz03/HTTPS-requests-scheduler.git
 2. Navigate to the project directory:
 
 ```
-cd HTTPS-requests-schedule
+cd HTTPS-requests-scheduler
 ```
 
 3. Install the dependencies:

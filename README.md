@@ -74,83 +74,127 @@ scheduler.run(true);
 
 ### Request
 
-**`constructor(id: string, url: string, priority: Priority)`**
+The Request class represents an HTTP(S) GET request.
 
-Creates a new instance of the `Request` class.
+#### Constructor
 
-**`isFinished(): boolean`**
+- `new Request(id: string, url: string, priority: Priority): Request`: Creates a new Request object with the provided ID, URL, and priority.
 
-Checks if the request has been executed or canceled.
+#### Properties
 
-**`execute()`**
+- `id: string`: The unique ID of the request.
 
-Executes the HTTPS request.
+- `url: string`: The URL to which the request is made.
 
-**`cancel()`**
+- `priority: number`: The priority level of the request.
 
-Cancels the HTTPS request.
+- `status: Status`: The current status of the request.
+
+#### Methods
+
+- `execute(): Promise<any>`
+
+Executes the request and returns a promise that resolves with the response when the request is complete.
+
+- `cancel(): void`
+
+Cancels the request if it is in progress.
+
+- `isFinished(): boolean`
+
+Checks if the request has been finished or canceled. Returns `true` if the request is `executed` or `canceled`; otherwise, returns `false`.
+
 
 ### Scheduler
 
-#### Public methods
+#### Constructor
 
-**`constructor()`**
+- `new Scheduler(): Scheduler`: Creates an instance of the Scheduler class.
 
-Creates a new instance of the `Scheduler` class.
+#### Properties
 
-**`print()`**
+- `pendingRequests: Request[]`: An array of pending requests.
 
-Prints the current status of the scheduler.
+- `runningRequests: Request[]`: An array of currently running requests.
 
-**`addRequest(newRequests: Request[])`**
+- `executedRequests: Request[]`: An array of executed requests.
 
-Adds new requests to the scheduler.
+- `logs: string[]`: An array of logs containing the status and priority of requests.
 
-**`run(print?: boolean): Promise<void>`**
+- `responses: any[]`: An array of responses from the executed requests.
 
-Runs the scheduler and processes the requests.
+#### Public Methods
 
-**`isRequestInProgress(requestId: string): boolean`**
+- `addRequest(newRequests: Request[]): void`
 
-Checks if a request is currently being processed.
+Adds new requests to the Scheduler. The requests should be provided as an array of Request objects.
 
-**`isRequestPending(requestId: string): boolean`**
+- `run(print?: boolean): Promise<void>`
 
-Checks if a request is currently pending.
+Executes the Scheduler. Returns a promise that resolves when all requests have been executed.
+The optional `print` parameter, when set to `true`, prints the status of requests during execution.
 
-**`cancelPendingRequest(requestId: string): void`**
+- `print(): void`
 
-Cancels a pending request.
+Prints the current status of the Scheduler, including running and pending requests.
 
-**`cancelRunningRequest(requestId: string): void`**
+- `isRequestInProgress(requestId: string): boolean`
 
-Cancels a running request.
+Checks if a specific request is currently being processed by the Scheduler.
+Returns `true` if the request is in progress; otherwise, returns `false`.
 
-**`changeRequestPriority(requestId: string, newPriority: Priority): void`**
+- `isRequestPending(requestId: string): boolean`
 
-Changes the priority of a request.
+Checks if a specific request is pending in the Scheduler. Returns `true` if the request is pending; otherwise, returns `false`.
+
+- `cancelPendingRequest(requestId: string): void`
+
+Cancels a pending request with the specified ID.
+
+- `cancelRunningRequest(requestId: string): void`
+
+Cancels a running request with the specified ID.
+
+- `changeRequestPriority(requestId: string, newPriority: Priority): void`
+
+Changes the priority of a request with the specified ID.
 
 #### Private Methods
 These methods are meant for internal use within the class and are not typically accessed outside the class.
 
-**`getMaxPriority(requests: Request[])`**
+- `getMaxPriority(requests: Request[]): number ` 
 
 Gets the maximum priority among a list of requests.
 
-**`requestsWithMaxPriority(requests: Request[])`**
+- `requestsWithMaxPriority(requests: Request[]): Request[] `
 
 Returns an array of requests with the maximum priority.
 
-**`requestsWithoutMaxPriority(requests: Request[])`**
+- `requestsWithoutMaxPriority(requests: Request[]): Request[]`
 
 Returns an array of requests that do not have the maximum priority.
 
-Please refer to the source code and comments for further details on how each method works.
+*Please refer to the source code and comments for further details on how each method works.*
 
-## Contributions
+### Enum: Priority
 
-Please feel free to submit issues and/or pull requests, your contributions are welcome.
+The Priority enum represents the priority levels of requests.
 
-## License
+- `Priority.VERY_LOW = -1`: Very low priority level.
+- `Priority.LOW = 0`: Low priority level.
+- `Priority.MEDIUM = 1`: Medium priority level.
+- `Priority.HIGH = 2`: High priority level.
+- `Priority.VERY_HIGH = 3`: Very high priority level.
 
-This project is licensed under the MIT License.
+### Enum: Status
+
+The Status enum represents the status of requests.
+
+- `Status.PENDING = "PENDING"`: The request is pending to be processed.
+- `Status.IN_PROGRESS = "IN_PROGRESS"`: The request is currently being processed.
+- `Status.EXECUTED = "EXECUTED"`: The request has been processed.
+- `Status.CANCELED = "CANCELED"`: The request has been canceled.
+
+## Conclusion
+
+The Scheduler API provides a convenient way to manage and execute HTTP(S) GET requests in a specific order based on their priority. By following the usage instructions and utilizing the provided methods and classes, you can effectively control the execution flow of your requests. If you have any further questions or need assistance, please refer to the documentation or contact the project maintainers.

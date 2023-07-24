@@ -10,16 +10,16 @@ describe("project testing", () => {
         scheduler = new Scheduler();
     });
 
-    it("Vérifier l'exécution des requêtes dans l'ordre de priorité correct", async () => {
-    const request1 = new Request("1", "https://api.sandbox.game/lands/9239/metadata.json", Priority.LOW);
-    const request2 = new Request("2", "https://api.sandbox.game/lands/92310/metadata.json", Priority.HIGH);
-    const request3 = new Request("3", "https://api.sandbox.game/lands/92311/metadata.json", Priority.MEDIUM);
+    it("Verify request execution by priority order", async () => {
+        const request1 = new Request("1", "https://api.sandbox.game/lands/9239/metadata.json", Priority.LOW);
+        const request2 = new Request("2", "https://api.sandbox.game/lands/92310/metadata.json", Priority.HIGH);
+        const request3 = new Request("3", "https://api.sandbox.game/lands/92311/metadata.json", Priority.MEDIUM);
 
-    scheduler.addRequest([request1, request2, request3]);
+        scheduler.addRequest([request1, request2, request3]);
 
-    await scheduler.run();    
-    
-    expect(scheduler.executedRequests.map((req) => req.id)).to.deep.equal(["2", "3", "1"]);
+        await scheduler.runPromise;
+        
+        expect(scheduler.executedRequests).to.deep.equal(["2", "3", "1"]);
     });
 
     it('should add a request correctly', () => {
@@ -36,12 +36,12 @@ describe("project testing", () => {
         const request2 = new Request("2", "https://api.sandbox.game/lands/92310/metadata.json", Priority.MEDIUM);
 
         scheduler.addRequest([request1, request2]);
+        await scheduler.runPromise;
 
-        await scheduler.run();
 
         expect(scheduler.pendingRequests).to.deep.equal([]);
         expect(scheduler.runningRequests).to.deep.equal([]);
-        expect(scheduler.executedRequests).to.deep.equal([request1, request2]);
+        expect(scheduler.executedRequests).to.deep.equal([request1.id, request2.id]);
     });
 
     it('should cancel pending request correctly', async () => {
@@ -49,27 +49,25 @@ describe("project testing", () => {
         const request2 = new Request("2", "https://api.sandbox.game/lands/92310/metadata.json", Priority.MEDIUM);
 
         scheduler.addRequest([request1, request2]);
-        const running = scheduler.run();
         scheduler.cancelPendingRequest('2');
 
-        await running;
+        await scheduler.runPromise;
 
         expect(request2.status).to.equal(Status.CANCELED);
-        expect(scheduler.executedRequests).to.deep.equal([request1]);
+        expect(scheduler.executedRequests).to.deep.equal([request1.id]);
     });
 
     it('should cancel running request correctly', async () => {
         const request1 = new Request("1", "https://api.sandbox.game/lands/9239/metadata.json", Priority.HIGH);
 
         scheduler.addRequest([request1]);
-        const running = scheduler.run();
 
         scheduler.cancelRunningRequest('1');
 
-        await running;
+        await scheduler.runPromise;
 
         expect(request1.status).to.equal(Status.CANCELED);
-        expect(scheduler.executedRequests).to.deep.equal([request1]);
+        expect(scheduler.executedRequests).to.deep.equal([request1.id]);
     });
 
     it('should change priority and execute pending request if necessary', () => {
@@ -80,8 +78,6 @@ describe("project testing", () => {
         const request4 = new Request("4", 'https://api.sandbox.game/lands/9238/metadata.json', Priority.LOW);
 
         scheduler.addRequest([request1, request2, request3,request4]);
-
-        scheduler.run();
         
         scheduler.changeRequestPriority("4", Priority.HIGH);
     
@@ -99,7 +95,6 @@ describe("project testing", () => {
         const request4 = new Request("4", 'https://api.sandbox.game/lands/9238/metadata.json', Priority.VERY_HIGH);
 
         scheduler.addRequest([request1, request2, request3]);
-        const running = scheduler.run();
         scheduler.addRequest([request4]);
         
         expect(request4.priority).to.equal(Priority.VERY_HIGH);
@@ -117,13 +112,11 @@ describe("project testing", () => {
         expect(scheduler.pendingRequests).to.include(request2);
         expect(scheduler.pendingRequests).to.include(request3);
 
-        // waiting all Promises
-        await running;
+        await scheduler.runPromise;
 
-        // Verify that all pomises have been resolved and executedRequests array has 4 requests
+        // Verify that all promises have been resolved and executedRequests array has 4 requests
         expect(scheduler.pendingRequests).to.deep.equal([]);
         expect(scheduler.runningRequests).to.deep.equal([]);
         expect(scheduler.executedRequests.length).to.equal(4);
-
     });    
 });

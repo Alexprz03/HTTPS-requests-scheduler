@@ -16,6 +16,7 @@ export enum Status {
     IN_PROGRESS = "IN_PROGRESS", // The request is currently being processed
     EXECUTED = "EXECUTED",     // The request has been processed
     CANCELED = "CANCELED",     // The request has been canceled
+    ERROR = "ERROR", // The request received an error
 }
 
 // The main class to handle requests
@@ -36,7 +37,7 @@ export default class Request {
 
     // Method to check if the request has been finished or not
     public isFinished(): boolean {
-        return this.status === Status.EXECUTED || this.status === Status.CANCELED;
+        return this.status === Status.EXECUTED || this.status === Status.CANCELED || this.status === Status.ERROR;
     }
 
     // Method to execute the request
@@ -51,10 +52,15 @@ export default class Request {
                 this.status = Status.EXECUTED;
                 resolve(res);
             }).on('error', (err) => {
-                // Set the status to canceled
-                this.status = Status.CANCELED;
-                if(err.message === 'socket hang up') return;
-                reject(err);
+                // If the request has been aborted
+                if(err.message === 'socket hang up' && this.status === Status.CANCELED) {
+                    resolve("Request has been canceled");
+                }
+                else{
+                    // Set the status to canceled
+                    this.status = Status.ERROR;
+                    reject(err);
+                }
             });
         });
     }

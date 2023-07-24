@@ -27,24 +27,22 @@ export default class Scheduler {
         if (newRequests.length !== 0) {
             // Case 1: no current running requests
             if (this.runningRequests.length === 0) {
-                const requestsWithMaxPriority = this.requestsWithMaxPriority(newRequests);
+                const separatedRequests = this.separatePriorities(newRequests);
                 // Execute the requests with maximum priority
-                this.executeRequests(requestsWithMaxPriority);
+                this.executeRequests(separatedRequests!.maxPriority);
 
                 // Put the remaining requests in the pending list
-                const requestsWithoutMaxPriority = this.requestsWithoutMaxPriority(newRequests);
-                this.pendingRequests.push(...requestsWithoutMaxPriority);
+                this.pendingRequests.push(...separatedRequests!.others);
             }
 
             // Case 2: there are running requests
             else if (this.runningRequests.length > 0) {
-                const maxPriorityNewRequests = this.requestsWithMaxPriority(newRequests);
-                const maxPriorityRunningRequests = this.getMaxPriority(this.runningRequests);
+                const maxPriorityNewRequests = this.getMaxPriority(newRequests) 
 
                 // Check if incoming requests have higher priority than the running ones
-                if (maxPriorityNewRequests[0].priority >= maxPriorityRunningRequests) {
+                if (maxPriorityNewRequests >= this.getMaxPriority(this.runningRequests)) {
                     // Process requests of very high priority
-                    if(maxPriorityNewRequests[0].priority === Priority.VERY_HIGH){
+                    if(maxPriorityNewRequests === Priority.VERY_HIGH){
                         const veryLowPriorityRequests = this.runningRequests.filter((req) => req.priority === Priority.VERY_LOW);
                         // Cancel and push back to the pending list all running requests of very low priority
                         veryLowPriorityRequests.forEach((req) => {
@@ -56,12 +54,11 @@ export default class Scheduler {
                         });
                     }
 
+                    const separatedRequests = this.separatePriorities(newRequests);
                     // Add the highest priority requests to running and execute them
-                    this.executeRequests(maxPriorityNewRequests);
-
+                    this.executeRequests(separatedRequests!.maxPriority);
                     // Push the remaining requests to pending
-                    const othersNewRequests = this.requestsWithoutMaxPriority(newRequests);
-                    this.pendingRequests.push(...othersNewRequests);
+                    this.pendingRequests.push(...separatedRequests!.others);
                 }
             }
             if(!this.isRunning) {
@@ -76,31 +73,31 @@ export default class Scheduler {
         return this.responses[requestId];
     }
 
-// Method to get the status of a request
-public getStatus(requestId: string): Status | null {
-    // Check in the running requests
-    const runningRequest = this.runningRequests.find((req) => req.id === requestId);
-    if (runningRequest) {
-        return runningRequest.status;
-    }
-
-    // Check in the responses array
-    if (this.responses[requestId]) {
-        if(this.responses[requestId] === "Request has been canceled") {
-            return Status.CANCELED;
+    // Method to get the status of a request
+    public getStatus(requestId: string): Status | null {
+        // Check in the running requests
+        const runningRequest = this.runningRequests.find((req) => req.id === requestId);
+        if (runningRequest) {
+            return runningRequest.status;
         }
-        return Status.EXECUTED;
-    }
 
-    // Check in the pending requests
-    const pendingRequest = this.pendingRequests.find((req) => req.id === requestId);
-    if (pendingRequest) {
-        return pendingRequest.status;
-    }
+        // Check in the responses array
+        if (this.responses[requestId]) {
+            if(this.responses[requestId] === "Request has been canceled") {
+                return Status.CANCELED;
+            }
+            return Status.EXECUTED;
+        }
 
-    // Request not found
-    return null;
-}
+        // Check in the pending requests
+        const pendingRequest = this.pendingRequests.find((req) => req.id === requestId);
+        if (pendingRequest) {
+            return pendingRequest.status;
+        }
+
+        // Request not found
+        return null;
+    }
 
 
     // Method to print the current status of the scheduler
@@ -147,23 +144,22 @@ public getStatus(requestId: string): Status | null {
                 if (refresh) {
                     // If there are no running requests but there are pending ones
                     if (this.runningRequests.length === 0 && this.pendingRequests.length > 0) {
+                        const separatedRequests = this.separatePriorities(this.pendingRequests);
                         // the scheduler runs those with the highest priority only
-                        const requestsToRun = this.requestsWithMaxPriority(this.pendingRequests);
-                        // Execute the requests
-                        this.executeRequests(requestsToRun);
+                        this.executeRequests(separatedRequests!.maxPriority);
                         // leaving the others still pending
-                        this.pendingRequests = this.requestsWithoutMaxPriority(this.pendingRequests);
+                        this.pendingRequests = separatedRequests!.others;
                     }
 
                     // If there is at least one running request and at least one pending request
                     if (this.runningRequests.length > 0 && this.pendingRequests.length > 0) {
                         // it will execute the pending request(s) with the highest priority only if their priority(s) is higher or equal
                         if(this.getMaxPriority(this.pendingRequests) >= this.getMaxPriority(this.runningRequests)) {
-                            const requestsToRun = this.requestsWithMaxPriority(this.pendingRequests);
+                            const separatedRequests = this.separatePriorities(this.pendingRequests);
                             // Execute the requests
-                            this.executeRequests(requestsToRun);
+                            this.executeRequests(separatedRequests!.maxPriority);
                             // Remove from pending
-                            this.pendingRequests = this.requestsWithoutMaxPriority(this.pendingRequests);
+                            this.pendingRequests = separatedRequests!.others;
                         }
                     }
                 }    
@@ -206,26 +202,24 @@ public getStatus(requestId: string): Status | null {
         if (requests.length === 0) {
             return -1;
         }
-        requests.sort((a, b) => b.priority - a.priority);
-        return requests[0].priority;
+
+        let maxPriority = requests[0].priority;
+        for (let i = 1; i < requests.length; i++) {
+            if (requests[i].priority > maxPriority) {
+                maxPriority = requests[i].priority;
+            }
+        }
+    
+        return maxPriority;
     }
 
-    // Method to get the requests with the maximum priority
-    private requestsWithMaxPriority(requests: Request[]): Request[] {
+    // Method to get the requests with the maximum priority and the others
+    private separatePriorities(requests: Request[]): { maxPriority: Request[], others: Request[] } | null {
         if (requests.length === 0) {
-            return [];
+            return null;
         }
         const maxPriority = this.getMaxPriority(requests);
-        return requests.filter(req => req.priority === maxPriority);
-    }
-
-    // Method to get the requests without the maximum priority
-    private requestsWithoutMaxPriority(requests: Request[]): Request[] {
-        if (requests.length === 0) {
-            return [];
-        }
-        const maxPriority = this.getMaxPriority(requests);
-        return requests.filter(req => req.priority !== maxPriority);
+        return { maxPriority: requests.filter(req => req.priority === maxPriority), others : requests.filter(req => req.priority !== maxPriority)}
     }
 
     // Method to check if a specific request is currently being processed

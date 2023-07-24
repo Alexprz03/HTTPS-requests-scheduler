@@ -66,9 +66,7 @@ const scheduler = new Scheduler();
 const request1 = new Request("request1", "https://api.example.com", Priority.HIGH);
 const request2 = new Request("request2", "https://api.example2.com", Priority.LOW);
 
-scheduler.addRequest([request1, request2]);
-
-scheduler.run(true);
+scheduler.addRequest([request1, request2], true);
 ```
 
 ## API Documentation
@@ -122,18 +120,17 @@ Checks if the request has been finished or canceled. Returns `true` if the reque
 
 - `logs: string[]`: An array of logs containing the status and priority of requests.
 
-- `responses: any[]`: An array of responses from the executed requests.
+- `responses: { [key: string]: any }`: A key-value of responses from the executed requests.
+
+- `runPromise: Promise<void> | null`: A promise that represents the execution of the scheduler. It is set to null initially.
+
+- `isRunning: boolean`: A flag that indicates whether the scheduler is currently running.
 
 #### Public Methods
 
 - `addRequest(newRequests: Request[]): void`
 
-Adds new requests to the Scheduler. The requests should be provided as an array of Request objects.
-
-- `run(print?: boolean): Promise<void>`
-
-Executes the Scheduler. Returns a promise that resolves when all requests have been executed.
-The optional `print` parameter, when set to `true`, prints the status of requests during execution.
+Adds new requests to the Scheduler and run the program. The requests should be provided as an array of Request objects. This method call the run() function. The optional `print` parameter, when set to `true`, prints the status of requests during execution.
 
 - `print(): void`
 
@@ -160,20 +157,29 @@ Cancels a running request with the specified ID.
 
 Changes the priority of a request with the specified ID.
 
+- `getStatus(requestId: string): Status | null`
+
+Method to get the status of a request
+
+- `getResponse(requestId: string): any`
+
+Method to get the response of a request
+
 #### Private Methods
 These methods are meant for internal use within the class and are not typically accessed outside the class.
+
+- `run(print?: boolean): Promise<void>`
+
+Executes the Scheduler. Returns a promise that resolves when all requests have been executed.
+The optional `print` parameter, when set to `true`, prints the status of requests during execution.
 
 - `getMaxPriority(requests: Request[]): number ` 
 
 Gets the maximum priority among a list of requests.
 
-- `requestsWithMaxPriority(requests: Request[]): Request[] `
+`separatePriorities(requests: Request[]): { maxPriority: Request[], others: Request[] } | null`
 
-Returns an array of requests with the maximum priority.
-
-- `requestsWithoutMaxPriority(requests: Request[]): Request[]`
-
-Returns an array of requests that do not have the maximum priority.
+Return the requests with the maximum priority and the others.
 
 *Please refer to the source code and comments for further details on how each method works.*
 
@@ -194,7 +200,7 @@ The Status enum represents the status of requests.
 - `Status.PENDING = "PENDING"`: The request is pending to be processed.
 - `Status.IN_PROGRESS = "IN_PROGRESS"`: The request is currently being processed.
 - `Status.EXECUTED = "EXECUTED"`: The request has been processed.
-- `Status.CANCELED = "CANCELED"`: The request has been canceled.
+- `Status.ERROR = "ERROR"`: The request received an error.
 
 ## Conclusion
 

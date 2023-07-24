@@ -2,11 +2,13 @@ import Request, { Priority, Status } from "./request";
 
 // Scheduler class that manages requests
 export default class Scheduler {
-    pendingRequests: Request[];   // Array of pending requests
-    runningRequests: Request[];   // Array of currently running requests
-    executedRequests: Request[];  // Array of executed requests
-    logs: string[];               // Logs of the requests
-    responses: any[];             // Responses from the requests
+    pendingRequests: Request[];          // Array of pending requests
+    runningRequests: Request[];          // Array of currently running requests
+    executedRequests: string[];         // Array of executed requests
+    logs: string[];                      // Logs of the requests
+    responses: Map<string, any>;        // Responses from the requests
+    runPromise: Promise<void> | null;
+    isRunning: boolean;
 
     constructor() {
         // Initialize the arrays and logs
@@ -14,78 +16,89 @@ export default class Scheduler {
         this.runningRequests = [];
         this.executedRequests = [];
         this.logs = [];
-        this.responses = [];
+        this.responses = new Map();
+        this.runPromise = null;
+        this.isRunning = false;
     }
 
     // Method to add new requests
-    public addRequest(newRequests: Request[]) {
+    public addRequest(newRequests: Request[], print?: boolean) {
         // Throw an error if the array of requests is empty
-        if (newRequests.length === 0) {
-            throw new Error("The array of requests is empty");
-        }
+        if (newRequests.length !== 0) {
+            // Case 1: no current running requests
+            if (this.runningRequests.length === 0) {
+                const separatedRequests = this.separatePriorities(newRequests);
+                // Execute the requests with maximum priority
+                this.executeRequests(separatedRequests!.maxPriority);
 
-        // Case 1: no current running requests
-        if (this.runningRequests.length === 0) {
-            const requestsWithMaxPriority = this.requestsWithMaxPriority(newRequests);
-            // Execute the requests with maximum priority
-            for (const req of requestsWithMaxPriority) {
-                req.execute()
-                .then((response) => {
-                    // Log the executed request
-                    this.logs.push(`${req.id} ${req.status} (Priority: ${req.priority})`);
-                    // Save the response
-                    this.responses.push(response);
-                })
-                .catch((error) => {
-                    console.log(error);
-                });
-                this.runningRequests.push(req);
+                // Put the remaining requests in the pending list
+                this.pendingRequests.push(...separatedRequests!.others);
             }
 
-            // Put the remaining requests in the pending list
-            const requestsWithoutMaxPriority = this.requestsWithoutMaxPriority(newRequests);
-            this.pendingRequests.push(...requestsWithoutMaxPriority);
-        }
+            // Case 2: there are running requests
+            else if (this.runningRequests.length > 0) {
+                const maxPriorityNewRequests = this.getMaxPriority(newRequests) 
 
-        // Case 2: there are running requests
-        else if (this.runningRequests.length > 0) {
-            const maxPriorityNewRequests = this.requestsWithMaxPriority(newRequests);
-            const maxPriorityRunningRequests = this.getMaxPriority(this.runningRequests);
+                // Check if incoming requests have higher priority than the running ones
+                if (maxPriorityNewRequests >= this.getMaxPriority(this.runningRequests)) {
+                    // Process requests of very high priority
+                    if(maxPriorityNewRequests === Priority.VERY_HIGH){
+                        const veryLowPriorityRequests = this.runningRequests.filter((req) => req.priority === Priority.VERY_LOW);
+                        // Cancel and push back to the pending list all running requests of very low priority
+                        veryLowPriorityRequests.forEach((req) => {
+                            req.cancel();
+                            this.logRequest(`${req.id} ${req.status} (Priority: ${req.priority})`);
+                            req.status = Status.PENDING;
+                            this.pendingRequests.push(req);
+                            this.runningRequests = this.runningRequests.filter((runningReq) => runningReq !== req);
+                        });
+                    }
 
-            // Check if incoming requests have higher priority than the running ones
-            if (maxPriorityNewRequests[0].priority >= maxPriorityRunningRequests) {
-                // Process requests of very high priority
-                if(maxPriorityNewRequests[0].priority === Priority.VERY_HIGH){
-                    const veryLowPriorityRequests = this.runningRequests.filter((req) => req.priority === Priority.VERY_LOW);
-                    // Cancel and push back to the pending list all running requests of very low priority
-                    veryLowPriorityRequests.forEach((req) => {
-                        req.cancel();
-                        this.logs.push(`${req.id} ${req.status} (Priority: ${req.priority})`);
-                        req.status = Status.PENDING;
-                        this.pendingRequests.push(req);
-                        this.runningRequests = this.runningRequests.filter((runningReq) => runningReq !== req);
-                    });
+                    const separatedRequests = this.separatePriorities(newRequests);
+                    // Add the highest priority requests to running and execute them
+                    this.executeRequests(separatedRequests!.maxPriority);
+                    // Push the remaining requests to pending
+                    this.pendingRequests.push(...separatedRequests!.others);
                 }
-
-                // Add the highest priority requests to running and execute them
-                for (const req of maxPriorityNewRequests) {
-                    req.execute()
-                    .then((response) => {
-                        this.logs.push(`${req.id} ${req.status} (Priority: ${req.priority})`);
-                        this.responses.push(response);
-                    })
-                    .catch((error) => {
-                        console.log(error);
-                    });
-                    this.runningRequests.push(req);
-                }
-
-                // Push the remaining requests to pending
-                const othersNewRequests = this.requestsWithoutMaxPriority(newRequests);
-                this.pendingRequests.push(...othersNewRequests);
+            }
+            if(!this.isRunning) {
+                this.isRunning = true;
+                this.runPromise = this.run(print);
             }
         }
     }
+
+    // Method to get the response of a request
+    public getResponse(requestId: string): any {
+        return this.responses.get(requestId);;
+    }
+
+    // Method to get the status of a request
+    public getStatus(requestId: string): Status | null {
+        // Check in the running requests
+        const runningRequest = this.runningRequests.find((req) => req.id === requestId);
+        if (runningRequest) {
+            return runningRequest.status;
+        }
+
+        // Check in the responses array
+        if (this.responses.get(requestId)) {
+            if(this.responses.get(requestId) === "Request has been canceled") {
+                return Status.CANCELED;
+            }
+            return Status.EXECUTED;
+        }
+
+        // Check in the pending requests
+        const pendingRequest = this.pendingRequests.find((req) => req.id === requestId);
+        if (pendingRequest) {
+            return pendingRequest.status;
+        }
+
+        // Request not found
+        return null;
+    }
+
 
     // Method to print the current status of the scheduler
     public print() {
@@ -111,20 +124,19 @@ export default class Scheduler {
     // Public method to run the scheduler
     public async run(print?: boolean): Promise<void> {
         let refresh:boolean;
-        const logs: string[] = [];
         return new Promise((resolve) => {
             const interval = setInterval(() => {
                 refresh = false;
                 if (print) this.print();
 
                 // Check if any requests have been executed and if we need to update the tables
-                this.runningRequests.forEach((req, index) => {
+                this.runningRequests.forEach((req) => {
                     if (req.isFinished()) {
                         refresh = true;
                         // Remove the request from the running list
-                        const executedRequest = this.runningRequests.splice(index, 1)[0];
+                        this.runningRequests = this.runningRequests.filter((request) => request.id !== req.id);
                         // Add the request to the executed list
-                        this.executedRequests.push(executedRequest);
+                        this.executedRequests.push(req.id);
                     }
                 });
 
@@ -132,42 +144,22 @@ export default class Scheduler {
                 if (refresh) {
                     // If there are no running requests but there are pending ones
                     if (this.runningRequests.length === 0 && this.pendingRequests.length > 0) {
+                        const separatedRequests = this.separatePriorities(this.pendingRequests);
                         // the scheduler runs those with the highest priority only
-                        const requestsToRun = this.requestsWithMaxPriority(this.pendingRequests);
-                        requestsToRun.forEach((req) => {
-                            req.execute()
-                            .then((response) => {
-                                this.logs.push(`${req.id} ${req.status} (Priority: ${req.priority})`);
-                                this.responses.push(response);
-                            })
-                            .catch((error) => {
-                                console.log(error);
-                            });
-                            this.runningRequests.push(req);
-                        })
+                        this.executeRequests(separatedRequests!.maxPriority);
                         // leaving the others still pending
-                        this.pendingRequests = this.requestsWithoutMaxPriority(this.pendingRequests);
+                        this.pendingRequests = separatedRequests!.others;
                     }
 
                     // If there is at least one running request and at least one pending request
                     if (this.runningRequests.length > 0 && this.pendingRequests.length > 0) {
                         // it will execute the pending request(s) with the highest priority only if their priority(s) is higher or equal
                         if(this.getMaxPriority(this.pendingRequests) >= this.getMaxPriority(this.runningRequests)) {
-                            // Execute
-                            const requestsToRun = this.requestsWithMaxPriority(this.pendingRequests);
-                            requestsToRun.forEach((req) => {
-                                req.execute()
-                                .then((response) => {
-                                    this.logs.push(`${req.id} ${req.status} (Priority: ${req.priority})`);
-                                    this.responses.push(response);
-                                })
-                                .catch((error) => {
-                                    console.log(error);
-                                });
-                                this.runningRequests.push(req);
-                            })
+                            const separatedRequests = this.separatePriorities(this.pendingRequests);
+                            // Execute the requests
+                            this.executeRequests(separatedRequests!.maxPriority);
                             // Remove from pending
-                            this.pendingRequests = this.requestsWithoutMaxPriority(this.pendingRequests);
+                            this.pendingRequests = separatedRequests!.others;
                         }
                     }
                 }    
@@ -175,37 +167,59 @@ export default class Scheduler {
                 if (this.pendingRequests.length === 0 && this.runningRequests.length === 0) {
                     clearInterval(interval);
                     if (print) this.print();
+                    this.isRunning = false;
                     resolve();
                 }
             }, 500); //Check the status of the requests every half second
         });
     }
 
+    private logRequest(request: string) {
+        this.logs.push(request);
+        if(this.logs.length > 10) {
+            this.logs.shift();
+        }
+    }
+
+    private executeRequests(requests: Request[]): void {
+        requests.forEach((req) => {
+            req.execute()
+                .then((response) => {
+                    this.logRequest(`${req.id} ${req.status} (Priority: ${req.priority})`);
+                    // Store the response
+                    this.responses.set(req.id, response);
+                })
+                .catch((error) => {
+                    console.log(error);
+                });
+            this.runningRequests.push(req);
+        });
+    }
+    
+
     // Method to get the maximum priority among a list of requests
     private getMaxPriority(requests: Request[]): number {
         if (requests.length === 0) {
             return -1;
         }
-        requests.sort((a, b) => b.priority - a.priority);
-        return requests[0].priority;
+
+        let maxPriority = requests[0].priority;
+        for (let i = 1; i < requests.length; i++) {
+            if (requests[i].priority > maxPriority) {
+                maxPriority = requests[i].priority;
+            }
+        }
+    
+        return maxPriority;
     }
 
-    // Method to get the requests with the maximum priority
-    private requestsWithMaxPriority(requests: Request[]): Request[] {
+    // Method to get the requests with the maximum priority and the others
+    private separatePriorities(requests: Request[]): { maxPriority: Request[], others: Request[] } | null {
         if (requests.length === 0) {
-            return [];
+            return null;
         }
         const maxPriority = this.getMaxPriority(requests);
-        return requests.filter(req => req.priority === maxPriority);
-    }
-
-    // Method to get the requests without the maximum priority
-    private requestsWithoutMaxPriority(requests: Request[]): Request[] {
-        if (requests.length === 0) {
-            return [];
-        }
-        const maxPriority = this.getMaxPriority(requests);
-        return requests.filter(req => req.priority !== maxPriority);
+        return { maxPriority: requests.filter(req => req.priority === maxPriority), others : requests.filter(req => req.priority !== maxPriority)}
     }
 
     // Method to check if a specific request is currently being processed
@@ -236,8 +250,6 @@ export default class Scheduler {
         // If the request is found and it is not finished, cancel it
         if (requestToCancel && !requestToCancel.isFinished()) {
           requestToCancel.cancel();
-          // Log the canceled request
-          this.logs.push(`${requestToCancel.id} ${requestToCancel.status} (Priority: ${requestToCancel.priority})`);
         } else {
           console.log("Request not found");
         }
@@ -262,9 +274,9 @@ export default class Scheduler {
                     pendingRequestToUpdate.execute()
                         .then((response) => {
                             // Log the executed request
-                            this.logs.push(`${pendingRequestToUpdate.id} ${pendingRequestToUpdate.status} (Priority: ${pendingRequestToUpdate.priority})`);
-                            // Save the response
-                            this.responses.push(response);
+                            this.logRequest(`${pendingRequestToUpdate.id} ${pendingRequestToUpdate.status} (Priority: ${pendingRequestToUpdate.priority})`);
+                            // Store the response
+                            this.responses.set(pendingRequestToUpdate.id, response);
                         })
                         .catch((error) => {
                             console.log(error);

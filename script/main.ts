@@ -25,10 +25,7 @@ async function main() {
     ];
 
     // Add the requests to the scheduler
-    scheduler.addRequest(requests);
-
-    // Run scheduler
-    scheduler.run(true);
+    scheduler.addRequest(requests, true);
 
     // Add new requests at regular intervals
     let requestId = 16;
@@ -40,7 +37,9 @@ async function main() {
             new Request(String(requestId + 2), `https://api.sandbox.game/lands/${number + 2}/metadata.json/`, Priority.LOW),
         ];
 
-        scheduler.addRequest(newRequests);
+        if(scheduler.isRunning === true) {
+            scheduler.addRequest(newRequests);
+        }
 
         if (scheduler.runningRequests[0] && !scheduler.runningRequests[0].isFinished()) {
             scheduler.cancelRunningRequest(scheduler.runningRequests[0].id);

@@ -6,7 +6,7 @@ export default class Scheduler {
     runningRequests: Request[];          // Array of currently running requests
     executedRequests: string[];         // Array of executed requests
     logs: string[];                      // Logs of the requests
-    responses: { [key: string]: any };   // Responses from the requests
+    responses: Map<string, any>;        // Responses from the requests
     runPromise: Promise<void> | null;
     isRunning: boolean;
 
@@ -16,7 +16,7 @@ export default class Scheduler {
         this.runningRequests = [];
         this.executedRequests = [];
         this.logs = [];
-        this.responses = {};
+        this.responses = new Map();
         this.runPromise = null;
         this.isRunning = false;
     }
@@ -70,7 +70,7 @@ export default class Scheduler {
 
     // Method to get the response of a request
     public getResponse(requestId: string): any {
-        return this.responses[requestId];
+        return this.responses.get(requestId);;
     }
 
     // Method to get the status of a request
@@ -82,8 +82,8 @@ export default class Scheduler {
         }
 
         // Check in the responses array
-        if (this.responses[requestId]) {
-            if(this.responses[requestId] === "Request has been canceled") {
+        if (this.responses.get(requestId)) {
+            if(this.responses.get(requestId) === "Request has been canceled") {
                 return Status.CANCELED;
             }
             return Status.EXECUTED;
@@ -187,7 +187,7 @@ export default class Scheduler {
                 .then((response) => {
                     this.logRequest(`${req.id} ${req.status} (Priority: ${req.priority})`);
                     // Store the response
-                    this.responses[req.id] = response;
+                    this.responses.set(req.id, response);
                 })
                 .catch((error) => {
                     console.log(error);
@@ -276,7 +276,7 @@ export default class Scheduler {
                             // Log the executed request
                             this.logRequest(`${pendingRequestToUpdate.id} ${pendingRequestToUpdate.status} (Priority: ${pendingRequestToUpdate.priority})`);
                             // Store the response
-                            this.responses[pendingRequestToUpdate.id] = response;
+                            this.responses.set(pendingRequestToUpdate.id, response);
                         })
                         .catch((error) => {
                             console.log(error);
